@@ -1,2 +1,28 @@
+labels:
+  mirror.linkerd.io/exported: true
+redis:
+  config:
+    maxmemory: 512mb
+auth: true
+redisPassword: RedisAuthPassw0rd
 haproxy:
   enabled: true
+  service:
+    annotations:
+      groovy: "true"
+  replicas: 2
+  metrics:
+    enabled: false
+    serviceMonitor:
+      enabled: false
+exporter:
+  enabled: false
+  serviceMonitor:
+    enabled: false
+    namespace: monitoring
+podDisruptionBudget:
+  maxUnavailable: 1
+persistentVolume:
+  size: 1Gi
+prometheusRule:
+  enabled: false
