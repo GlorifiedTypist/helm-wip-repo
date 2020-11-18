@@ -1,5 +1,5 @@
 labels:
-  mirror.linkerd.io/exported: true
+  mirror.linkerd.io/exported: "true"
 redis:
   config:
     maxmemory: 512mb
