@@ -37,14 +37,17 @@
 {{- define "config-init.sh" }}
     HOSTNAME="$(hostname)"
     INDEX="${HOSTNAME##*-}"
-    MASTER="$(redis-cli -h {{ template "redis-ha.fullname" . }} -p {{ .Values.sentinel.port }} sentinel get-master-addr-by-name {{ template "redis-ha.masterGroupName" . }} | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')"
+    HOSTNAME_PREFIX=$(echo $HOSTNAME | awk -F'-' '{ print $1 }')
+    PRIMARY_SUFFIX=west
+    SECONDARY_SUFFIX=east
+    PRIMARY_MASTER_SERVICE=$HOSTNAME_PREFIX-ha-pri-redis-ha-mc-$PRIMARY_SUFFIX
+    SECONDARY_MASTER_SERVICE=$HOSTNAME_PREFIX-ha-pri-redis-ha-mc-$SECONDARY_SUFFIX
     MASTER_GROUP="{{ template "redis-ha.masterGroupName" . }}"
     QUORUM="{{ .Values.sentinel.quorum }}"
     REDIS_CONF=/data/conf/redis.conf
     REDIS_PORT={{ .Values.redis.port }}
     SENTINEL_CONF=/data/conf/sentinel.conf
     SENTINEL_PORT={{ .Values.sentinel.port }}
-    SERVICE={{ template "redis-ha.fullname" . }}
     set -eu
 
     sentinel_update() {
@@ -68,6 +71,15 @@
         cp /readonly-config/sentinel.conf "$SENTINEL_CONF"
     }
 
+    primary_sec() {
+      cluster_role=$(hostname | awk -F'-' ' { print $3 }')
+      if [ "$cluster_role" == "pri" ]; then
+        echo "primary"
+      else
+        echo "secondary"
+      fi
+    }
+
     setup_defaults() {
         echo "Setting up defaults"
         if [ "$INDEX" = "0" ]; then
@@ -88,27 +100,49 @@
     }
 
     find_master() {
-        echo "Attempting to find master"
-        if [ "$(redis-cli -h "$MASTER"{{ if .Values.auth }} -a "$AUTH"{{ end }} ping)" != "PONG" ]; then
-           echo "Can't ping master, attempting to force failover"
-           if redis-cli -h "$SERVICE" -p "$SENTINEL_PORT" sentinel failover "$MASTER_GROUP" | grep -q 'NOGOODSLAVE' ; then
-               setup_defaults
-               return 0
-           fi
-           sleep 10
-           MASTER="$(redis-cli -h $SERVICE -p $SENTINEL_PORT sentinel get-master-addr-by-name $MASTER_GROUP | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')"
-           if [ "$MASTER" ]; then
-               sentinel_update "$MASTER"
-               redis_update "$MASTER"
-           else
-              echo "Could not failover, exiting..."
-              exit 1
-           fi
-        else
-            echo "Found reachable master, updating config"
-            sentinel_update "$MASTER"
-            redis_update "$MASTER"
-        fi
+      echo "Attempting to find primary cluster master first"
+
+      echo "Determining if we are in primary cluster"
+      if [ "$(primary_sec)" == "primary" ]; then
+        MASTER="$(redis-cli -h {{ template "redis-ha.fullname" . }} -p 26379 sentinel get-master-addr-by-name mymaster | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')"
+        SERVICE=RELEASE-NAME-redis-ha-mc
+      else
+        MASTER="$(redis-cli -h $PRIMARY_MASTER_SERVICE -p 26379 sentinel get-master-addr-by-name mymaster | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')"
+        SERVICE=$SECONDARY_MASTER_SERVICE
+      fi
+
+      echo "Attempting to find primary cluster master, we are in the $(primary_sec) cluster"
+      if [ "$(redis-cli -h "$MASTER"{{ if .Values.auth }} -a "$AUTH"{{ end }} ping)" != "PONG" && "$(primary_sec)" != "primary" ]; then
+        echo "Primary master not found. We are not in primary cluster, sleeping for a 1 minute before retrying"
+        sleep 60
+      fi
+
+      # TODO: Check non-primary cluster for master
+
+      if [ "$(redis-cli -h "$MASTER"{{ if .Values.auth }} -a "$AUTH"{{ end }} ping)" != "PONG" ]; then
+         echo "Can't find primary cluster master, attempting locally"
+         MASTER="$(redis-cli -h RELEASE-NAME-redis-ha-mc -p 26379 sentinel get-master-addr-by-name mymaster | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')"
+      elif [ "$(redis-cli -h "$MASTER"{{ if .Values.auth }} -a "$AUTH"{{ end }} ping)" != "PONG" ]; then
+         echo "Can't ping any master, attempting to force failover"
+         SERVICE={{ template "redis-ha.fullname" . }}
+         if redis-cli -h "$SERVICE" -p "$SENTINEL_PORT" sentinel failover "$MASTER_GROUP" | grep -q 'NOGOODSLAVE' ; then
+             setup_defaults
+             return 0
+         fi
+         sleep 10
+         MASTER="$(redis-cli -h $SERVICE -p $SENTINEL_PORT sentinel get-master-addr-by-name $MASTER_GROUP | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')"
+         if [ "$MASTER" ]; then
+             sentinel_update "$MASTER"
+             redis_update "$MASTER"
+         else
+            echo "Could not failover, exiting..."
+            exit 1
+         fi
+      else
+          echo "Found reachable master, updating config"
+          sentinel_update "$MASTER"
+          redis_update "$MASTER"
+      fi
     }
 
     mkdir -p /data/conf/
