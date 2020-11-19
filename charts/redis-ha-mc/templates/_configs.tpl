@@ -43,6 +43,7 @@
     SECONDARY_SUFFIX=east
     PRIMARY_MASTER_SERVICE=$HOSTNAME_PREFIX-ha-pri-redis-ha-mc-$PRIMARY_SUFFIX
     SECONDARY_MASTER_SERVICE=$HOSTNAME_PREFIX-ha-pri-redis-ha-mc-$SECONDARY_SUFFIX
+    PRIMARY_ANNOUNCE=$HOSTNAME_PREFIX-ha-pri-redis-ha-mc-announce-0-$PRIMARY_SUFFIX
     MASTER_GROUP="{{ template "redis-ha.masterGroupName" . }}"
     QUORUM="{{ .Values.sentinel.quorum }}"
     REDIS_CONF=/data/conf/redis.conf
@@ -85,13 +86,17 @@
 
     setup_defaults() {
         echo "Setting up defaults"
-        if [ "$INDEX" = "0" ]; then
+        if [ "$INDEX" = "0" && "$(primary_sec)" == "primary" ]; then
             echo "Setting this pod as the default master"
             redis_update "$ANNOUNCE_IP"
             sentinel_update "$ANNOUNCE_IP"
             sed -i "s/^.*slaveof.*//" "$REDIS_CONF"
         else
-            DEFAULT_MASTER="$(getent hosts "$SERVICE-announce-0" | awk '{ print $1 }')"
+            if [ "$(primary_sec)" == "primary" ]; then
+                DEFAULT_MASTER="$(getent hosts "$SERVICE-announce-0" | awk '{ print $1 }')"
+             else
+                DEFAULT_MASTER="$(getent hosts "$PRIMARY_ANNOUNCE" | awk '{ print $1 }')"
+            fi
             if [ -z "$DEFAULT_MASTER" ]; then
                 echo "Unable to resolve host"
                 exit 1
