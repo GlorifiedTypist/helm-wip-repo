@@ -3,6 +3,18 @@ entries:
   redis-ha-mc:
   - apiVersion: v2
     appVersion: 1.0.1
+    created: "2020-11-19T17:11:14.90650985Z"
+    description: Rework of redis-ha in google stable for multi-cluster support
+    digest: 04d6283678c1c2c42bcf072eee08e4935fe973006707d5c4bf657238081bad4c
+    maintainers:
+    - name: GlorifiedTypist
+    name: redis-ha-mc
+    type: application
+    urls:
+    - https://github.com/GlorifiedTypist/helm-wip-repo/releases/download/redis-ha-mc-4.4.17/redis-ha-mc-4.4.17.tgz
+    version: 4.4.17
+  - apiVersion: v2
+    appVersion: 1.0.1
     created: "2020-11-19T15:41:41.534438324Z"
     description: Rework of redis-ha in google stable for multi-cluster support
     digest: b8f4ba45b36ac99155d43efad6219bb7cce9ef324daa1d88a84bc65673d665f7
