@@ -2,7 +2,7 @@ apiVersion: v2
 name: redis-ha-mc
 description: Rework of redis-ha in google stable for multi-cluster support
 type: application
-version: 4.4.14
+version: 4.4.15
 appVersion: 1.0.1
 maintainers:
   - name: GlorifiedTypist
