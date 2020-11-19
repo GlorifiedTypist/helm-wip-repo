@@ -48,7 +48,7 @@
     REDIS_PORT={{ .Values.redis.port }}
     SENTINEL_CONF=/data/conf/sentinel.conf
     SENTINEL_PORT={{ .Values.sentinel.port }}
-    set -eu
+    set -eux
 
     sentinel_update() {
         echo "Updating sentinel config with master $MASTER"
