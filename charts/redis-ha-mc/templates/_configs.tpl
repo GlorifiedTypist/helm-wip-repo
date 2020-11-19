@@ -150,7 +150,9 @@
     echo "Initializing config.."
     copy_config
 
+    MASTER="$(redis-cli -h {{ template "redis-ha.fullname" . }} -p {{ .Values.sentinel.port }} sentinel get-master-addr-by-name {{ template "redis-ha.masterGroupName" . }} | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')"
     SERVICE={{ template "redis-ha.fullname" . }}
+
     ANNOUNCE_IP=$(getent hosts "$SERVICE-announce-$INDEX" | awk '{ print $1 }')
     if [ -z "$ANNOUNCE_IP" ]; then
         "Could not resolve the announce ip for this pod"
