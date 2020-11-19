@@ -35,6 +35,7 @@
 {{- end }}
 
 {{- define "config-init.sh" }}
+    set -x
     HOSTNAME="$(hostname)"
     INDEX="${HOSTNAME##*-}"
     HOSTNAME_PREFIX=$(echo $HOSTNAME | awk -F'-' '{ print $1 }')
@@ -48,6 +49,7 @@
     REDIS_PORT={{ .Values.redis.port }}
     SENTINEL_CONF=/data/conf/sentinel.conf
     SENTINEL_PORT={{ .Values.sentinel.port }}
+    MASTER="$(redis-cli -h {{ template "redis-ha.fullname" . }} -p {{ .Values.sentinel.port }} sentinel get-master-addr-by-name {{ template "redis-ha.masterGroupName" . }} | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')"
     set -eux
 
     sentinel_update() {
