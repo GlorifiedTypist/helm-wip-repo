@@ -105,7 +105,7 @@
       echo "Determining if we are in primary cluster"
       if [ "$(primary_sec)" == "primary" ]; then
         MASTER="$(redis-cli -h {{ template "redis-ha.fullname" . }} -p 26379 sentinel get-master-addr-by-name mymaster | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')"
-        SERVICE=RELEASE-NAME-redis-ha-mc
+        SERVICE={{ template "redis-ha.fullname" . }}
       else
         MASTER="$(redis-cli -h $PRIMARY_MASTER_SERVICE -p 26379 sentinel get-master-addr-by-name mymaster | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')"
         SERVICE=$SECONDARY_MASTER_SERVICE
@@ -150,6 +150,7 @@
     echo "Initializing config.."
     copy_config
 
+    SERVICE={{ template "redis-ha.fullname" . }}
     ANNOUNCE_IP=$(getent hosts "$SERVICE-announce-$INDEX" | awk '{ print $1 }')
     if [ -z "$ANNOUNCE_IP" ]; then
         "Could not resolve the announce ip for this pod"
