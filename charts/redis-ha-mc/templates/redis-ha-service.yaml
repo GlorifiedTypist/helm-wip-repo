@@ -5,6 +5,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
 {{ include "labels.standard" . | indent 4 }}
+    {{- range $key, $value := .Values.labels }}
+    {{ $key }}: {{ $value  | quote }}
+    {{- end }}
 {{- if and ( .Values.exporter.enabled ) ( .Values.exporter.serviceMonitor.enabled ) }}
     servicemonitor: enabled
 {{- end }}
