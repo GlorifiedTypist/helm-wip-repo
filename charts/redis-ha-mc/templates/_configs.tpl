@@ -129,7 +129,7 @@
 
       if [ "$(redis-cli -h "$MASTER"{{ if .Values.auth }} -a "$AUTH"{{ end }} ping)" != "PONG" ]; then
          echo "Can't find primary cluster master, attempting locally"
-         MASTER="$(redis-cli -h RELEASE-NAME-redis-ha-mc -p 26379 sentinel get-master-addr-by-name mymaster | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')"
+         MASTER="$(redis-cli -h {{ template "redis-ha.fullname" . }} -p 26379 sentinel get-master-addr-by-name mymaster | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')"
       elif [ "$(redis-cli -h "$MASTER"{{ if .Values.auth }} -a "$AUTH"{{ end }} ping)" != "PONG" ]; then
          echo "Can't ping any master, attempting to force failover"
          SERVICE={{ template "redis-ha.fullname" . }}
